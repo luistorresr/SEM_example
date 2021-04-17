@@ -6,9 +6,20 @@
 
 # Packages 
 
-library(lavaan) # SEM analysis 
+if(!require(lavaan)) install.packages("lavaan", dependencies = TRUE, repos = "http://cran.us.r-project.org")
+if(!require(semTools)) install.packages("semTools", dependencies = TRUE, repos = "http://cran.us.r-project.org")
+if(!require(haven)) install.packages("haven", dependencies = TRUE, repos = "http://cran.us.r-project.org")
+if(!require(tidyverse)) install.packages("tidyverse", dependencies = TRUE, repos = "http://cran.us.r-project.org")
+if(!require(MVN)) install.packages("MVN", dependencies = TRUE, repos = "http://cran.us.r-project.org")
+if(!require(faoutlier)) install.packages("faoutlier", dependencies = TRUE, repos = "http://cran.us.r-project.org")
+if(!require(car)) install.packages("car", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 
+library(lavaan) # SEM analysis - https://lavaan.ugent.be/
 library(semTools) # SEM graphs and reliability 
+
+library(haven) # importing data
+library(tidyverse) # data manipulation 
+
 library(MVN) # normality checks 
 library(faoutlier) # outlier checks 
 library(car) # multicolineality and errors check 
@@ -16,12 +27,17 @@ library(car) # multicolineality and errors check
 
 # Load data
 
+url_data <- "https://github.com/luistorresr/SEM_example/raw/main/data_example_spss.sav"
 
+data <- read_sav(url_data)
 
+rm(url_data)
 
-## Inspect data
+# inspect the data
 
-
+dim(data) # number of rows and columns 
+names(data) # variable name
+head(data, n=10) # summary of the first ten rows 
 
 
 ############################ Running SEM ######################################
@@ -34,50 +50,49 @@ library(car) # multicolineality and errors check
 
 ## Variable 1 (x1): CSR 
 
-### model specification 
+csrdata <- data %>% select(CSR1rev:CSR30)
 
-mm.CSR <- 'self_protecting =~ CSR1rev + CSR2rev + CSR3rev + CSR4rev
-            compliance =~ CSR5 + CSR6 + CSR7 + CSR8 + CSR9 + CSR10
-            capability =~  CSR11 + CSR12 + CSR13 + CSR14 + CSR15 + CSR16
-            caring =~ CSR17 + CSR18 + CSR19 + CSR20 + CSR21
-            strategizing =~ CSR22 + CSR23 + CSR24 + CSR25 + CSR26
-            transforming =~ CSR27 + CSR28 + CSR29 + CSR30 
-            CSR =~ self_protecting + compliance + capability + caring + strategizing + transforming'
+### Model specification 
+
+mm.CSR <- 'prot =~ CSR2rev + CSR3rev + CSR4rev
+              comp =~ CSR6 + CSR7 + CSR8 + CSR9 + CSR10 + CSR16 + CSR14 
+              cap =~  CSR11 + CSR21 + CSR17
+              emb =~  CSR18 + CSR19 + CSR20 
+              stra =~ CSR22 + CSR23 + CSR24 + CSR25 + CSR26 + CSR15 + CSR13
+              tran =~  CSR27 + CSR28 + CSR29 + CSR30
+              CSR =~ prot + comp + cap + emb + stra + tran'
+
 
 ### Basic checks before fitting the model
 
-uniNorm(data.frame(Surveydata$CSR1rev, Surveydata$CSR2rev, Surveydata$CSR3rev, Surveydata$CSR4rev, Surveydata$CSR5, Surveydata$CSR6, 
-                   Surveydata$CSR7, Surveydata$CSR8, Surveydata$CSR9, Surveydata$CSR10, Surveydata$CSR11, Surveydata$CSR12, 
-                   Surveydata$CSR13, Surveydata$CSR14, Surveydata$CSR15, Surveydata$CSR16, Surveydata$CSR17, Surveydata$CSR18, 
-                   Surveydata$CSR19, Surveydata$CSR20, Surveydata$CSR21, Surveydata$CSR22, Surveydata$CSR23, Surveydata$CSR24, 
-                   Surveydata$CSR25, Surveydata$CSR26, Surveydata$CSR27, Surveydata$CSR28, Surveydata$CSR29, Surveydata$CSR30), 
-        type = c("Lillie"), desc = TRUE) # Lillie for Kolgomorov-Smirnov - univariate normality 
+csrdata %>% lavCor(ordered = names(csrdata), 
+                  missing = "listwise", ov.names.x = NULL, se = "none", 
+                  estimator = "two.step", output = "cor") # Polychoric correlation
 
-mardiaTest(data.frame(Surveydata$CSR1rev, Surveydata$CSR2rev, Surveydata$CSR3rev, Surveydata$CSR4rev, Surveydata$CSR5, Surveydata$CSR6, 
-                      Surveydata$CSR7, Surveydata$CSR8, Surveydata$CSR9, Surveydata$CSR10, Surveydata$CSR11, Surveydata$CSR12, 
-                      Surveydata$CSR13, Surveydata$CSR14, Surveydata$CSR15, Surveydata$CSR16, Surveydata$CSR17, Surveydata$CSR18, 
-                      Surveydata$CSR19, Surveydata$CSR20, Surveydata$CSR21, Surveydata$CSR22, Surveydata$CSR23, Surveydata$CSR24, 
-                      Surveydata$CSR25, Surveydata$CSR26, Surveydata$CSR27, Surveydata$CSR28, Surveydata$CSR29, Surveydata$CSR30)) #### multivariate normality
+gcd <- csrdata %>% gCD(mm.CSR) # check for model influential outliers
+plot(gcd, y = NULL, main = "Generalized Cook Distance", type = c("p", "h"), ylab = "gCD")
 
-gCD(Surveydata, mm.CSR) # check for model influential outliers
+csrdata <- csrdata[-c(33, 4),] # we may decide to remove these two cases, but we will not
 
 
 ### Fitting the model - CFA for ordinal data with no normal distribution 
 
-mm.CSR.fit <- cfa(mm.CSR, data = Surveydata, 
-                  ordered = c("CSR1rev", "CSR2rev", "CSR3rev", "CSR4rev", "CSR5", "CSR6", "CSR7", "CSR8", "CSR9", "CSR10", 
-                              "CSR11", "CSR12", "CSR13", "CSR14", "CSR15", "CSR16", "CSR17", "CSR18", "CSR19", "CSR20", 
-                              "CSR21", "CSR22", "CSR23", "CSR24", "CSR25", "CSR26", "CSR27", "CSR28", "CSR29", "CSR30"), 
+mm.CSR.fit <- lavaan::cfa(mm.CSR, data = csrdata, 
+                  ordered = names(csrdata), 
                   estimator = "ULSMV", mimic = "Mplus")
 
 ### Model fit 
 
 summary(mm.CSR.fit, fit.measures = TRUE, standardized = TRUE, rsquare = TRUE, modindices = FALSE)
-
 reliability(mm.CSR.fit)
+options(digits = 2)
+
+modindices(mm.CSR.fit) %>% arrange(desc(mi))
 
 
 ## Variable 2 (x2): Overall justice 
+
+jdata <- data %>% select(Justice1, Justice2, Justice3)
 
 ### Model specification 
 
@@ -86,16 +101,17 @@ mm.justice <- 'justice =~ Justice1 + Justice2 + Justice3'
 
 ### Basic checks before fitting the model
 
-uniNorm(data.frame(Surveydata$Justice1, Surveydata$Justice2, Surveydata$Justice3), 
-        type = c("Lillie"), desc = TRUE) # Lillie for Kolgomorov-Smirnov for univariate normality 
+jdata %>% lavCor(ordered = names(jdata), 
+                   missing = "listwise", ov.names.x = NULL, se = "none", 
+                   estimator = "two.step", output = "cor") # Polychoric correlation
 
-mardiaTest(data.frame(Surveydata$Justice1, Surveydata$Justice2, Surveydata$Justice3)) # multivariate normality 
+gcd2 <- jdata %>% gCD(mm.justice) # check for model influential outliers
+plot(gcd2, y = NULL, main = "Generalized Cook Distance", type = c("p", "h"), ylab = "gCD")
 
-gCD(Surveydata, mmi.justice) # Outliers
 
 ### Fitting the model - CFA for ordinal data with no normal distribution 
 
-mm.justice.fit <- cfa(mm.justice, data = Surveydata, 
+mm.justice.fit <- lavaan::cfa(mm.justice, data = jdata, 
                       ordered = c("Justice1", "Justice2", "Justice3"), 
                       estimator = "ULSMV", mimic = "Mplus")
 
@@ -107,52 +123,56 @@ reliability(mm.justice.fit) # reliability analysis
 
 ## Variable 3 (y1:y4): Gender strategies
 
+gdata <- data %>% select(Gender1:Gender20)
+
+
 ### model specification 
 
-mm.gender <- ' training =~ Gender1 + Gender2 + Gender3
-                feminine =~ Gender4 + Gender5 + Gender6
-                opportunitites =~ Gender7 + Gender8 + Gender9 + Gender10 + Gender11 + Gender12
-                infraestructure =~ Gender13 + Gender14 + Gender15 + Gender16 + Gender17 + Gender18'
+mm.gender <- ' train =~ Gender1 + Gender2 + Gender3
+                div =~ Gender4 + Gender5 + Gender6
+                opp =~ Gender7 + Gender8 + Gender9 + Gender10 + Gender11 + Gender12
+                inf =~ Gender13 + Gender14 + Gender15 + Gender16 + Gender17 + Gender18'
 
 ### Basic checks before fitting the model
 
-uniNorm(data.frame(Surveydata$Gender1, Surveydata$Gender2, Surveydata$Gender3, Surveydata$Gender4, Surveydata$Gender5, 
-                   Surveydata$Gender6, Surveydata$Gender7, Surveydata$Gender8, Surveydata$Gender9, Surveydata$Gender10, 
-                   Surveydata$Gender11, Surveydata$Gender12, Surveydata$Gender13, Surveydata$Gender14, Surveydata$Gender15, 
-                   Surveydata$Gender16, Surveydata$Gender17, Surveydata$Gender18), type = c("Lillie"), desc = TRUE) # Lillie for Kolgomorov-Smirnov - univariate
+gdata %>% lavCor(ordered = names(gdata), 
+                 missing = "listwise", ov.names.x = NULL, se = "none", 
+                 estimator = "two.step", output = "cor") # Polychoric correlation
 
-mardiaTest(data.frame(Surveydata$Gender1, Surveydata$Gender2, Surveydata$Gender3, Surveydata$Gender4, Surveydata$Gender5, 
-                      Surveydata$Gender6, Surveydata$Gender7, Surveydata$Gender8, Surveydata$Gender9, Surveydata$Gender10, 
-                      Surveydata$Gender11, Surveydata$Gender12, Surveydata$Gender13, Surveydata$Gender14, Surveydata$Gender15, 
-                      Surveydata$Gender16, Surveydata$Gender17, Surveydata$Gender18)) # multivariate 
+gcd3 <- gdata %>% gCD(mm.gender) # check for model influential outliers
+plot(gcd3, y = NULL, main = "Generalized Cook Distance", type = c("p", "h"), ylab = "gCD")
 
-gCD(Surveydata, mmi.gender) # Outliers
 
 
 ### Fitting the model - CFA for ordinal data with no normal distribution 
 
-mm.gender.fit <- cfa(mm.gender, data = Surveydata, 
-                     ordered = c("Gender1", "Gender2", "Gender3", "Gender4", "Gender5", "Gender6", "Gender7", "Gender8", "Gender9", "Gender10", 
-                                 "Gender11", "Gender12", "Gender13", "Gender14", "Gender15", "Gender16", "Gender17", "Gender18"), 
+mm.gender.fit <- lavaan::cfa(mm.gender, data = gdata, 
+                     ordered = names(gdata), 
                      estimator = "ULSMV", group = NULL, mimic = "Mplus")
 
 ### Model fit
 
-summary(mmi.gender.fit, fit.measures = TRUE, standardized = TRUE, rsquare = TRUE, modindices = FALSE)
-standardizedsolution(mmi.gender.fit)
-reliability(mmi.gender.fit)
+summary(mm.gender.fit, fit.measures = TRUE, standardized = TRUE, rsquare = TRUE, modindices = FALSE)
+
+reliability(mm.gender.fit)
+
+modindices(mm.gender.fit) %>%  arrange(desc(mi))
 
 
-########## End step 1 #############
+########## End step 1 ############
 
 
 # STEP 2 - Structural model (or path analysis)
 
 ## extract factor scores from our fitted models
 
-lavPredict(mm.CSR.fit, type = "lv", newdata = NULL, method = "EBM", se.fit = FALSE, label = TRUE, optim.method = "nlminb")
-lavPredict(mm.gender.fit, type = "lv", newdata = NULL, method = "EBM", se.fit = FALSE, label = TRUE, optim.method = "nlminb")
-lavPredict(mm.justice.fit, type = "lv", newdata = NULL, method = "EBM", se.fit = FALSE, label = TRUE, optim.method = "nlminb")
+csrpred <- lavPredict(mm.CSR.fit, type = "lv", newdata = NULL, method = "EBM", label = TRUE, optim.method = "nlminb")
+gpred <- lavPredict(mm.gender.fit, type = "lv", newdata = NULL, method = "EBM", label = TRUE, optim.method = "nlminb")
+jpred <- lavPredict(mm.justice.fit, type = "lv", newdata = NULL, method = "EBM", label = TRUE, optim.method = "nlminb")
+
+pred <- cbind(csrpred, gpred, jpred) %>% as_tibble(.)
+
+pred <- pred %>% select(CSR, justice, train, div, opp, inf)
 
 
 ## Model specification 
@@ -161,72 +181,50 @@ fullmodel <- '
 
   # regressions for direct effect 
 
-      training ~ CSRdevelopment
-      feminine ~ CSRdevelopment
-      opportunities ~ CSRdevelopment
-      infraestructure ~ CSRdevelopment
+      train ~ CSR
+      div ~ CSR
+      opp ~ CSR
+      inf ~ CSR
 
   # regressions for the indirect effects
 
-      training ~ justice
-      feminine ~ justice
-      opportunities ~ justice
-      infraestructure ~ justice
-      justice ~ CSRdevelopment
+      train ~ justice
+      div ~ justice
+      opp ~ justice
+      inf ~ justice
+      justice ~ CSR
 '
 
 ## Check for assumptions 
 
-### Normality 
+pred %>% lavCor(missing = "listwise", ov.names.x = NULL, se = "none", 
+                estimator = "two.step", output = "cor") # Pearson correlation
 
-uniNorm(data.frame(factorscores$CSRdevelopment, factorscores$training, factorscores$feminine, 
-                   factorscores$opportunities, factorscores$infraestructure, factorscores$justice),
-        type = c("Lillie"), desc = TRUE) # Lillie for Kolgomorov-Smirnov
-
-mardiaTest(data.frame(factorscores$CSRdevelopment, factorscores$training, factorscores$feminine, 
-                      factorscores$opportunities, factorscores$infraestructure, factorscores$justice))
-
-### Outliers
-
-gCD(factorscores, fullmodel)
-
-
-### Multicolinearity 
-
-#### Inpact the correlations matrix
-sm.scores.corr <- lavCor(data.frame(factorscores$CSRdevelopment, factorscores$training, factorscores$feminine, 
-                                    factorscores$opportunities, factorscores$infraestructure, factorscores$justice), 
-                         zero.keep.margins = TRUE, group = NULL, 
-                         missing = "listwise", ov.names.x = NULL, se = "none", 
-                         estimator = "two.step", output = "cor")
-
-rcorr(as.matrix(data.frame(factorscores$CSRdevelopment, factorscores$training, factorscores$feminine, 
-                           factorscores$opportunities, factorscores$infraestructure, factorscores$justice)), 
-      type="pearson") # significance level
+gcd3 <- pred %>% gCD(fullmodel) # check for model influential outliers
+plot(gcd3, y = NULL, main = "Generalized Cook Distance", type = c("p", "h"), ylab = "gCD")
 
 
 #### VIF (variance inflation factors)
 
-vif(lm(training ~ CSRdevelopment + justice, data = factorscores))
-vif(lm(feminine ~ CSRdevelopment + justice, data = factorscores))
-vif(lm(opportunities ~ CSRdevelopment + justice, data = factorscores))
-vif(lm(infraestructure ~ CSRdevelopment + justice, data = factorscores))
+vif(lm(train ~ CSR + justice, data = pred))
+vif(lm(div ~ CSR + justice, data = pred))
+vif(lm(opp ~ CSR + justice, data = pred))
+vif(lm(inf ~ CSR + justice, data = pred))
 
 ### Test for Autocorrelated Errors
 
-durbinWatsonTest(lm(training ~ CSRdevelopment + neosexism + justice, data = factorscores)) 
-durbinWatsonTest(lm(feminine ~ CSRdevelopment + neosexism + justice, data = factorscores)) 
-durbinWatsonTest(lm(opportunities ~ CSRdevelopment + neosexism + justice, data = factorscores)) 
-durbinWatsonTest(lm(infraestructure ~ CSRdevelopment + neosexism + justice, data = factorscores)) 
+durbinWatsonTest(lm(train ~ CSR + justice, data = pred)) 
+durbinWatsonTest(lm(div ~ CSR + justice, data = pred)) 
+durbinWatsonTest(lm(opp ~ CSR + justice, data = pred)) 
+durbinWatsonTest(lm(inf ~ CSR + justice, data = pred)) 
 
 ## fit the model
 
-fullmodel.fit <- sem(fullmodel, data = factorscores, estimator = "MLR", group = NULL)
+fullmodel.fit <- lavaan::sem(fullmodel, data = pred, estimator = "MLR", group = NULL, meanstructure=TRUE)
 
 ## model fit
 
 summary(fullmodel.fit, fit.measures = TRUE, standardized = TRUE, rsquare = TRUE)
-fitMeasures(fullmodel.fit, "srmr")
-
+standardizedSolution(fullmodel.fit, type="std.all")
 
 
