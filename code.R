@@ -98,8 +98,7 @@ mm.CSR <- 'prot =~ CSR2rev + CSR3rev + CSR4rev
               cap =~  CSR11 + CSR21 + CSR17
               emb =~  CSR18 + CSR19 + CSR20 
               stra =~ CSR22 + CSR23 + CSR24 + CSR25 + CSR26 + CSR15 + CSR13
-              tran =~  CSR27 + CSR28 + CSR29 + CSR30
-              CSR =~ prot + comp + cap + emb + stra + tran'
+              tran =~  CSR27 + CSR28 + CSR29 + CSR30 '
 
 
 ### Basic checks before fitting the model
