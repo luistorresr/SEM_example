@@ -15,14 +15,12 @@ if(!require(faoutlier)) install.packages("faoutlier", dependencies = TRUE, repos
 if(!require(car)) install.packages("car", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 
 library(lavaan) # SEM analysis - https://lavaan.ugent.be/
-library(semTools) # SEM graphs and reliability 
+library(semTools) # Reliability 
 
 library(haven) # importing data
 library(tidyverse) # data manipulation 
-
-library(MVN) # normality checks 
 library(faoutlier) # outlier checks 
-library(car) # multicolineality and errors check 
+library(car) # multicolineality 
 
 
 # Load data
@@ -40,7 +38,49 @@ names(data) # variable name
 head(data, n=10) # summary of the first ten rows 
 
 
-############################ Running SEM ######################################
+############################ Running SEM ##################################################
+
+# Let's specify the full model? 
+
+
+MyModel <- '
+
+  # Structural model
+
+      training ~ CSR
+      diversity ~ CSR
+      opportunities ~ CSR
+      infraestructure  ~ CSR
+      justice ~ CSR
+
+      training ~ justice
+      diversity  ~ justice
+      opportunities ~ justice
+      infraestructure ~ justice
+
+  # Measurement model  
+
+      CSR =~ prot + comp + cap + emb + stra + tran
+            prot =~ CSR2rev + CSR3rev + CSR4rev
+            comp =~ CSR6 + CSR7 + CSR8 + CSR9 + CSR10 + CSR16 + CSR14 
+            cap =~  CSR11 + CSR21 + CSR17
+            emb =~  CSR18 + CSR19 + CSR20 
+            stra =~ CSR22 + CSR23 + CSR24 + CSR25 + CSR26 + CSR15 + CSR13
+            tran =~  CSR27 + CSR28 + CSR29 + CSR30
+
+      justice =~ Justice1 + Justice2 + Justice3
+
+      training =~ Gender1 + Gender2 + Gender3
+      diversity =~ Gender4 + Gender5 + Gender6
+      opportunities =~ Gender7 + Gender8 + Gender9 + Gender10 + Gender11 + Gender12
+      infraestructure =~ Gender13 + Gender14 + Gender15 + Gender16 + Gender17 + Gender18
+
+'
+
+      # Can we run this model?
+
+############################################################################################
+
 
 # STEP 1 - Measurement models
     ## Variable 1 (x1): CSR 
