@@ -10,7 +10,6 @@ if(!require(lavaan)) install.packages("lavaan", dependencies = TRUE, repos = "ht
 if(!require(semTools)) install.packages("semTools", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 if(!require(haven)) install.packages("haven", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 if(!require(tidyverse)) install.packages("tidyverse", dependencies = TRUE, repos = "http://cran.us.r-project.org")
-if(!require(MVN)) install.packages("MVN", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 if(!require(faoutlier)) install.packages("faoutlier", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 if(!require(car)) install.packages("car", dependencies = TRUE, repos = "http://cran.us.r-project.org")
 
